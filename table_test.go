@@ -1,7 +1,7 @@
 package wscltable
 
 import (
-	"fmt"
+	// "fmt"
 	"testing"
 )
 
@@ -9,7 +9,8 @@ func TestColumn(t *testing.T) {
 	// inistanciate Table
 	table := NewTable([]Column{
 		Column{Name: "ID", Width: 5, Alignment: "left"},
-		Column{Name: "Title", Width: 20, Alignment: "left"},
+		Column{Name: "Title", Width: 20},
+		Column{Name: "Tag", Width: 10, Alignment: "center"},
 		Column{Name: "Stock", Width: 5, Alignment: "right"},
 	})
 
@@ -22,26 +23,25 @@ func TestColumn(t *testing.T) {
 	}
 
 	s := table.getTopLine()
-	if s != "┌─────┬────────────────────┬─────┐" {
+	if s != "┌─────┬────────────────────┬──────────┬─────┐" {
 		t.Fatalf("wrong!!! s: %s", s)
 	}
 
 	s = table.getSeparateLine()
-	if s != "|─────|────────────────────|─────|" {
+	if s != "|─────|────────────────────|──────────|─────|" {
 		t.Fatalf("wrong!!! s: %s", s)
 	}
 
 	// Test AddRow method
-	table.AddRow(map[string]interface{}{"ID": 4, "Title": "golanggolanggolanggolanggolanggolanggolang", "Stock": 8})
+	table.AddRow(map[string]interface{}{"ID": 4, "Title": "golanggolanggolanggolanggolanggolanggolang", "Tag": "python", "Stock": 8})
 	for _, row := range table.Rows {
-		fmt.Println(len(row["ID"]))
 		if len(row["ID"]) != 3 {
 			t.Fatalf("wrong!!!: %d", len(row["ID"]))
 		}
 	}
 
-	/*
-		table.AddRow(map[string]interface{}{"ID": 5, "Title": "GOGOGOGOGOGOGOGOGOOGO", "Stock": 16})
-		table.Print()
-	*/
+	table.AddRow(map[string]interface{}{"Tag": "cli", "ID": 5, "Title": "TestCase", "Stock": 1})
+	table.AddRow(map[string]interface{}{"Tag": "ddd", "ID": 6, "Title": "GOGOGOGOGOGOGOGOGOOGO", "Stock": 16})
+
+	table.Print()
 }

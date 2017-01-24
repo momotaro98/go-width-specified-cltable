@@ -2,6 +2,7 @@ package wscltable
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/moznion/go-unicode-east-asian-width"
@@ -13,19 +14,27 @@ type Table struct {
 }
 
 func NewTable(columns []Column) *Table {
+	for _, c := range columns {
+		if c.Name == "" {
+			log.Fatalf("There is Name empty Column!")
+		}
+		if c.Width < len(c.Name) {
+			log.Fatalf("Width %d is too short for %s", c.Width, c.Name)
+		}
+	}
 	return &Table{
 		Columns: columns,
 		Rows:    make([]map[string][]string, 0),
 	}
 }
 
-func (t *Table) AddRow(row map[string]interface{}) error {
+func (t *Table) AddRow(row map[string]interface{}) {
 	newRow := make(map[string][]string)
 	var maxLen int
 	for _, c := range t.Columns {
 		v, ok := row[c.Name]
 		if !ok {
-			return fmt.Errorf("Error! No %s in your AddRow arguments", c.Name)
+			log.Fatalf("Error! No %s in your AddRow arguments", c.Name)
 		}
 		val := fmt.Sprintf("%v", v)
 		value, vLen := c.MakeTurnedLinesAndLen(val)
@@ -42,7 +51,6 @@ func (t *Table) AddRow(row map[string]interface{}) error {
 	if len(newRow) > 0 {
 		t.Rows = append(t.Rows, newRow)
 	}
-	return nil
 }
 
 func (t *Table) Print() {
@@ -50,6 +58,8 @@ func (t *Table) Print() {
 	fmt.Println(t.getTopLine())
 	fmt.Println(t.getColumnNameLine())
 	fmt.Println(t.getSeparateLine())
+
+	// print rows
 	for _, row := range t.Rows {
 		// get maxInnerLinesLen
 		var maxInnerLinesLen int
@@ -69,6 +79,7 @@ func (t *Table) Print() {
 			printRow := "|" + strings.Join(ails, "|") + "|"
 			fmt.Println(printRow)
 		}
+		// print separate line
 		fmt.Println(t.getSeparateLine())
 	}
 }
@@ -108,7 +119,7 @@ func (c *Column) MakeFilledInStr(char string) string {
 }
 
 func (c *Column) MakeTurnedLinesAndLen(val string) ([]string, int) {
-	lines := MakeTurnedLines(val, c.Width)
+	lines := c.makeTurnedLine(val)
 	length := len(lines)
 	return lines, length
 }
@@ -127,19 +138,20 @@ func (c *Column) MakeCenterAlignedStr() string {
 }
 
 // util func
-func MakeTurnedLines(str string, max_len int) (t_lines []string) {
+func (c *Column) makeTurnedLine(str string) (t_lines []string) {
 	var isJustMaxLenFlag bool
 	var cur_half_len int
 	var cur_line []rune
+
 	for _, r := range str { // 'r' means rune
 		if eastasianwidth.IsFullwidth(r) {
 			cur_half_len += 2
 		} else {
 			cur_half_len++
 		}
-		if cur_half_len == max_len {
+		if cur_half_len == c.Width {
 			isJustMaxLenFlag = true
-		} else if cur_half_len > max_len {
+		} else if cur_half_len > c.Width {
 			// Arrange to Full and Half
 			if isJustMaxLenFlag == true {
 				t_lines = append(t_lines, string(cur_line))
@@ -157,11 +169,23 @@ func MakeTurnedLines(str string, max_len int) (t_lines []string) {
 		}
 		cur_line = append(cur_line, r)
 	}
-	var spaces string
-	if rest_len := max_len - cur_half_len; rest_len > 0 {
-		spaces = strings.Repeat(" ", rest_len)
+	switch c.Alignment {
+	case "center":
+		t_lines = append(t_lines, CenterAligned(string(cur_line), c.Width))
+	case "right":
+		t_lines = append(t_lines, RightAligned(string(cur_line), c.Width))
+	case "left":
+		t_lines = append(t_lines, LeftAligned(string(cur_line), c.Width))
+	default:
+		t_lines = append(t_lines, LeftAligned(string(cur_line), c.Width))
 	}
-	t_lines = append(t_lines, string(cur_line)+spaces)
+	return
+}
+
+// util func
+func LeftAligned(str string, max int) (ret string) {
+	rest_num := max - len(str)
+	ret = str + strings.Repeat(" ", rest_num)
 	return
 }
 
@@ -169,5 +193,12 @@ func MakeTurnedLines(str string, max_len int) (t_lines []string) {
 func CenterAligned(str string, max int) (ret string) {
 	rest_num := max - len(str)
 	ret = strings.Repeat(" ", rest_num/2) + str + strings.Repeat(" ", rest_num-rest_num/2)
+	return
+}
+
+// util func
+func RightAligned(str string, max int) (ret string) {
+	rest_num := max - len(str)
+	ret = strings.Repeat(" ", rest_num) + str
 	return
 }
