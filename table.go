@@ -121,48 +121,59 @@ func (c *Column) MakeTurnedLinesAndLen(val string) ([]string, int) {
 	return lines, length
 }
 
-func (c *Column) makeTurnedLine(str string) (t_lines []string) {
+func (c *Column) makeTurnedLine(str string) (tLines []string) {
+	var nextHalfLen int
+	var halfLen int
+	var curRuneSlice []rune
 	var isJustMaxLenFlag bool
-	var cur_half_len int
-	var cur_line []rune
 
 	for _, r := range str { // 'r' means rune
 		if eastasianwidth.IsFullwidth(r) {
-			cur_half_len += 2
+			nextHalfLen = halfLen + 2
 		} else {
-			cur_half_len++
+			nextHalfLen = halfLen + 1
 		}
-		if cur_half_len == c.Width {
-			isJustMaxLenFlag = true
-		} else if cur_half_len > c.Width {
-			// Arrange to Full and Half
-			if isJustMaxLenFlag == true {
-				t_lines = append(t_lines, string(cur_line))
+
+		if nextHalfLen > c.Width {
+			// append curRuneSlice to goal slice(tLines)
+			if isJustMaxLenFlag {
+				tLines = append(tLines, string(curRuneSlice))
 			} else {
-				t_lines = append(t_lines, string(cur_line)+" ")
+				tLines = append(tLines, string(curRuneSlice)+" ")
 			}
-			// Initalize stat variables
+			// reset stat variables and continue
 			if eastasianwidth.IsFullwidth(r) {
-				cur_half_len = 2
+				halfLen = 2
 			} else {
-				cur_half_len = 1
+				halfLen = 1
 			}
+			curRuneSlice = []rune{r}
 			isJustMaxLenFlag = false
-			cur_line = nil
+			continue
 		}
-		cur_line = append(cur_line, r)
+
+		// change stat variables
+		halfLen = nextHalfLen
+		curRuneSlice = append(curRuneSlice, r)
+		if nextHalfLen == c.Width {
+			isJustMaxLenFlag = true
+		} else {
+			isJustMaxLenFlag = false
+		}
 	}
+	// alignment the last curRuneSlice and append it to tLines
 	switch c.Alignment {
 	case "center":
-		t_lines = append(t_lines, CenterAligned(string(cur_line), c.Width))
+		tLines = append(tLines, CenterAligned(string(curRuneSlice), c.Width))
 	case "right":
-		t_lines = append(t_lines, RightAligned(string(cur_line), c.Width))
+		tLines = append(tLines, RightAligned(string(curRuneSlice), c.Width))
 	case "left":
-		t_lines = append(t_lines, LeftAligned(string(cur_line), c.Width))
+		tLines = append(tLines, LeftAligned(string(curRuneSlice), c.Width))
 	default:
-		t_lines = append(t_lines, LeftAligned(string(cur_line), c.Width))
+		tLines = append(tLines, LeftAligned(string(curRuneSlice), c.Width))
 	}
-	return
+
+	return // return tLines
 }
 
 func (c *Column) AddEmptyLine(lines []string, maxLen int) []string {
