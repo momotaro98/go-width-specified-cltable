@@ -34,7 +34,7 @@ func (t *Table) AddRow(row map[string]interface{}) {
 	for _, c := range t.Columns {
 		v, ok := row[c.Name]
 		if !ok {
-			log.Fatalf("Error! No %s in your AddRow arguments", c.Name)
+			log.Fatalf("No %s in your AddRow arguments", c.Name)
 		}
 		val := fmt.Sprintf("%v", v)
 		value, vLen := c.MakeTurnedLinesAndLen(val)
@@ -45,7 +45,7 @@ func (t *Table) AddRow(row map[string]interface{}) {
 	}
 
 	for _, c := range t.Columns {
-		newRow[c.Name] = c.MakeFullLine(newRow[c.Name], maxLen)
+		newRow[c.Name] = c.AddEmptyLine(newRow[c.Name], maxLen)
 	}
 
 	if len(newRow) > 0 {
@@ -87,7 +87,7 @@ func (t *Table) Print() {
 func (t *Table) getTopLine() string {
 	csList := make([]string, len(t.Columns))
 	for i, c := range t.Columns {
-		csList[i] = c.MakeFilledInStr("─")
+		csList[i] = strings.Repeat("─", c.Width)
 	}
 	return "┌" + strings.Join(csList, "┬") + "┐"
 }
@@ -95,7 +95,7 @@ func (t *Table) getTopLine() string {
 func (t *Table) getColumnNameLine() string {
 	list := make([]string, len(t.Columns))
 	for i, c := range t.Columns {
-		list[i] = c.MakeCenterAlignedStr()
+		list[i] = CenterAligned(c.Name, c.Width)
 	}
 	return "|" + strings.Join(list, "|") + "|"
 }
@@ -103,19 +103,16 @@ func (t *Table) getColumnNameLine() string {
 func (t *Table) getSeparateLine() string {
 	csList := make([]string, len(t.Columns))
 	for i, c := range t.Columns {
-		csList[i] = c.MakeFilledInStr("─")
+		csList[i] = strings.Repeat("─", c.Width)
 	}
 	return "|" + strings.Join(csList, "|") + "|"
 }
 
+// Column
 type Column struct {
 	Name      string
 	Width     int
 	Alignment string
-}
-
-func (c *Column) MakeFilledInStr(char string) string {
-	return strings.Repeat(char, c.Width)
 }
 
 func (c *Column) MakeTurnedLinesAndLen(val string) ([]string, int) {
@@ -124,20 +121,6 @@ func (c *Column) MakeTurnedLinesAndLen(val string) ([]string, int) {
 	return lines, length
 }
 
-func (c *Column) MakeFullLine(lines []string, maxLen int) []string {
-	if diffLen := maxLen - len(lines); diffLen > 0 {
-		for i := 0; i < diffLen; i++ {
-			lines = append(lines, strings.Repeat(" ", c.Width))
-		}
-	}
-	return lines
-}
-
-func (c *Column) MakeCenterAlignedStr() string {
-	return CenterAligned(c.Name, c.Width)
-}
-
-// util func
 func (c *Column) makeTurnedLine(str string) (t_lines []string) {
 	var isJustMaxLenFlag bool
 	var cur_half_len int
@@ -180,6 +163,15 @@ func (c *Column) makeTurnedLine(str string) (t_lines []string) {
 		t_lines = append(t_lines, LeftAligned(string(cur_line), c.Width))
 	}
 	return
+}
+
+func (c *Column) AddEmptyLine(lines []string, maxLen int) []string {
+	if diffLen := maxLen - len(lines); diffLen > 0 {
+		for i := 0; i < diffLen; i++ {
+			lines = append(lines, strings.Repeat(" ", c.Width))
+		}
+	}
+	return lines
 }
 
 // util func
