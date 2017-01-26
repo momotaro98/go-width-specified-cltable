@@ -8,11 +8,13 @@ import (
 	"github.com/moznion/go-unicode-east-asian-width"
 )
 
+// Table is struct for printing table
 type Table struct {
 	Columns []Column
 	Rows    []map[string][]string
 }
 
+// NewTable creates a new instance of Table
 func NewTable(columns []Column) *Table {
 	for _, c := range columns {
 		if c.Name == "" {
@@ -28,13 +30,14 @@ func NewTable(columns []Column) *Table {
 	}
 }
 
+// AddRow adds a row to Table's Rows
 func (t *Table) AddRow(row map[string]interface{}) {
 	newRow := make(map[string][]string)
 	var maxLen int
 	for _, c := range t.Columns {
 		v, ok := row[c.Name]
 		if !ok {
-			log.Fatalf("Error! No %s in your AddRow arguments", c.Name)
+			log.Fatalf("No %s in your AddRow arguments", c.Name)
 		}
 		val := fmt.Sprintf("%v", v)
 		value, vLen := c.MakeTurnedLinesAndLen(val)
@@ -45,7 +48,7 @@ func (t *Table) AddRow(row map[string]interface{}) {
 	}
 
 	for _, c := range t.Columns {
-		newRow[c.Name] = c.MakeFullLine(newRow[c.Name], maxLen)
+		newRow[c.Name] = c.AddEmptyLine(newRow[c.Name], maxLen)
 	}
 
 	if len(newRow) > 0 {
@@ -53,6 +56,7 @@ func (t *Table) AddRow(row map[string]interface{}) {
 	}
 }
 
+// Print outputs table
 func (t *Table) Print() {
 	// print head
 	fmt.Println(t.getTopLine())
@@ -87,7 +91,7 @@ func (t *Table) Print() {
 func (t *Table) getTopLine() string {
 	csList := make([]string, len(t.Columns))
 	for i, c := range t.Columns {
-		csList[i] = c.MakeFilledInStr("─")
+		csList[i] = strings.Repeat("─", c.Width)
 	}
 	return "┌" + strings.Join(csList, "┬") + "┐"
 }
@@ -95,7 +99,7 @@ func (t *Table) getTopLine() string {
 func (t *Table) getColumnNameLine() string {
 	list := make([]string, len(t.Columns))
 	for i, c := range t.Columns {
-		list[i] = c.MakeCenterAlignedStr()
+		list[i] = CenterAligned(c.Name, c.Width)
 	}
 	return "|" + strings.Join(list, "|") + "|"
 }
@@ -103,28 +107,82 @@ func (t *Table) getColumnNameLine() string {
 func (t *Table) getSeparateLine() string {
 	csList := make([]string, len(t.Columns))
 	for i, c := range t.Columns {
-		csList[i] = c.MakeFilledInStr("─")
+		csList[i] = strings.Repeat("─", c.Width)
 	}
 	return "|" + strings.Join(csList, "|") + "|"
 }
 
+// Column is struct to manage Table's Columns
 type Column struct {
 	Name      string
 	Width     int
 	Alignment string
 }
 
-func (c *Column) MakeFilledInStr(char string) string {
-	return strings.Repeat(char, c.Width)
-}
-
+// MakeTurnedLinesAndLen return lines and lines num
 func (c *Column) MakeTurnedLinesAndLen(val string) ([]string, int) {
 	lines := c.makeTurnedLine(val)
 	length := len(lines)
 	return lines, length
 }
 
-func (c *Column) MakeFullLine(lines []string, maxLen int) []string {
+func (c *Column) makeTurnedLine(str string) (tLines []string) {
+	var nextHalfLen int
+	var halfLen int
+	var curRuneSlice []rune
+	var isJustMaxLenFlag bool
+
+	for _, r := range str { // 'r' means rune
+		if eastasianwidth.IsFullwidth(r) {
+			nextHalfLen = halfLen + 2
+		} else {
+			nextHalfLen = halfLen + 1
+		}
+
+		if nextHalfLen > c.Width {
+			// append curRuneSlice to goal slice(tLines)
+			if isJustMaxLenFlag {
+				tLines = append(tLines, string(curRuneSlice))
+			} else {
+				tLines = append(tLines, string(curRuneSlice)+" ")
+			}
+			// reset stat variables and continue
+			if eastasianwidth.IsFullwidth(r) {
+				halfLen = 2
+			} else {
+				halfLen = 1
+			}
+			curRuneSlice = []rune{r}
+			isJustMaxLenFlag = false
+			continue
+		}
+
+		// change stat variables
+		halfLen = nextHalfLen
+		curRuneSlice = append(curRuneSlice, r)
+		if nextHalfLen == c.Width {
+			isJustMaxLenFlag = true
+		} else {
+			isJustMaxLenFlag = false
+		}
+	}
+	// alignment the last curRuneSlice and append it to tLines
+	switch c.Alignment {
+	case "center":
+		tLines = append(tLines, CenterAligned(string(curRuneSlice), c.Width))
+	case "right":
+		tLines = append(tLines, RightAligned(string(curRuneSlice), c.Width))
+	case "left":
+		tLines = append(tLines, LeftAligned(string(curRuneSlice), c.Width))
+	default:
+		tLines = append(tLines, LeftAligned(string(curRuneSlice), c.Width))
+	}
+
+	return // return tLines
+}
+
+// AddEmptyLine add empty line to each column line
+func (c *Column) AddEmptyLine(lines []string, maxLen int) []string {
 	if diffLen := maxLen - len(lines); diffLen > 0 {
 		for i := 0; i < diffLen; i++ {
 			lines = append(lines, strings.Repeat(" ", c.Width))
@@ -133,72 +191,23 @@ func (c *Column) MakeFullLine(lines []string, maxLen int) []string {
 	return lines
 }
 
-func (c *Column) MakeCenterAlignedStr() string {
-	return CenterAligned(c.Name, c.Width)
-}
-
-// util func
-func (c *Column) makeTurnedLine(str string) (t_lines []string) {
-	var isJustMaxLenFlag bool
-	var cur_half_len int
-	var cur_line []rune
-
-	for _, r := range str { // 'r' means rune
-		if eastasianwidth.IsFullwidth(r) {
-			cur_half_len += 2
-		} else {
-			cur_half_len++
-		}
-		if cur_half_len == c.Width {
-			isJustMaxLenFlag = true
-		} else if cur_half_len > c.Width {
-			// Arrange to Full and Half
-			if isJustMaxLenFlag == true {
-				t_lines = append(t_lines, string(cur_line))
-			} else {
-				t_lines = append(t_lines, string(cur_line)+" ")
-			}
-			// Initalize stat variables
-			if eastasianwidth.IsFullwidth(r) {
-				cur_half_len = 2
-			} else {
-				cur_half_len = 1
-			}
-			isJustMaxLenFlag = false
-			cur_line = nil
-		}
-		cur_line = append(cur_line, r)
-	}
-	switch c.Alignment {
-	case "center":
-		t_lines = append(t_lines, CenterAligned(string(cur_line), c.Width))
-	case "right":
-		t_lines = append(t_lines, RightAligned(string(cur_line), c.Width))
-	case "left":
-		t_lines = append(t_lines, LeftAligned(string(cur_line), c.Width))
-	default:
-		t_lines = append(t_lines, LeftAligned(string(cur_line), c.Width))
-	}
-	return
-}
-
-// util func
+// LeftAligned return left aligned string
 func LeftAligned(str string, max int) (ret string) {
-	rest_num := max - len(str)
-	ret = str + strings.Repeat(" ", rest_num)
+	restNum := max - len(str)
+	ret = str + strings.Repeat(" ", restNum)
 	return
 }
 
-// util func
+// CenterAligned return center aligned string
 func CenterAligned(str string, max int) (ret string) {
-	rest_num := max - len(str)
-	ret = strings.Repeat(" ", rest_num/2) + str + strings.Repeat(" ", rest_num-rest_num/2)
+	restNum := max - len(str)
+	ret = strings.Repeat(" ", restNum/2) + str + strings.Repeat(" ", restNum-restNum/2)
 	return
 }
 
-// util func
+// RightAligned return rignt aligned string
 func RightAligned(str string, max int) (ret string) {
-	rest_num := max - len(str)
-	ret = strings.Repeat(" ", rest_num) + str
+	restNum := max - len(str)
+	ret = strings.Repeat(" ", restNum) + str
 	return
 }
