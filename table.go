@@ -8,11 +8,13 @@ import (
 	"github.com/moznion/go-unicode-east-asian-width"
 )
 
+// Table is struct for printing table
 type Table struct {
 	Columns []Column
 	Rows    []map[string][]string
 }
 
+// NewTable creates a new instance of Table
 func NewTable(columns []Column) *Table {
 	for _, c := range columns {
 		if c.Name == "" {
@@ -28,6 +30,7 @@ func NewTable(columns []Column) *Table {
 	}
 }
 
+// AddRow adds a row to Table's Rows
 func (t *Table) AddRow(row map[string]interface{}) {
 	newRow := make(map[string][]string)
 	var maxLen int
@@ -53,6 +56,7 @@ func (t *Table) AddRow(row map[string]interface{}) {
 	}
 }
 
+// Print outputs table
 func (t *Table) Print() {
 	// print head
 	fmt.Println(t.getTopLine())
@@ -108,13 +112,14 @@ func (t *Table) getSeparateLine() string {
 	return "|" + strings.Join(csList, "|") + "|"
 }
 
-// Column
+// Column is struct to manage Table's Columns
 type Column struct {
 	Name      string
 	Width     int
 	Alignment string
 }
 
+// MakeTurnedLinesAndLen return lines and lines num
 func (c *Column) MakeTurnedLinesAndLen(val string) ([]string, int) {
 	lines := c.makeTurnedLine(val)
 	length := len(lines)
@@ -176,6 +181,7 @@ func (c *Column) makeTurnedLine(str string) (tLines []string) {
 	return // return tLines
 }
 
+// AddEmptyLine add empty line to each column line
 func (c *Column) AddEmptyLine(lines []string, maxLen int) []string {
 	if diffLen := maxLen - len(lines); diffLen > 0 {
 		for i := 0; i < diffLen; i++ {
@@ -185,23 +191,23 @@ func (c *Column) AddEmptyLine(lines []string, maxLen int) []string {
 	return lines
 }
 
-// util func
+// LeftAligned return left aligned string
 func LeftAligned(str string, max int) (ret string) {
-	rest_num := max - len(str)
-	ret = str + strings.Repeat(" ", rest_num)
+	restNum := max - len(str)
+	ret = str + strings.Repeat(" ", restNum)
 	return
 }
 
-// util func
+// CenterAligned return center aligned string
 func CenterAligned(str string, max int) (ret string) {
-	rest_num := max - len(str)
-	ret = strings.Repeat(" ", rest_num/2) + str + strings.Repeat(" ", rest_num-rest_num/2)
+	restNum := max - len(str)
+	ret = strings.Repeat(" ", restNum/2) + str + strings.Repeat(" ", restNum-restNum/2)
 	return
 }
 
-// util func
+// RightAligned return rignt aligned string
 func RightAligned(str string, max int) (ret string) {
-	rest_num := max - len(str)
-	ret = strings.Repeat(" ", rest_num) + str
+	restNum := max - len(str)
+	ret = strings.Repeat(" ", restNum) + str
 	return
 }
